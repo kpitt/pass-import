@@ -5,6 +5,8 @@
 
 import json
 import re
+import zipfile
+from zipfile import ZipFile
 
 from pass_import.core import Cap, register_detecters
 from pass_import.detecter import Formatter
@@ -143,4 +145,81 @@ class PIF(JSON):
         return True
 
 
-register_detecters(JSON, PIF)
+class PUX(JSON):
+    """Base class for PUX based importers.
+
+    :param list ignore: List of key in the PUX file to not try to import.
+
+    """
+    format = '1pux'
+    encoding = 'utf-8-sig'
+    ignore = {'keyID', 'typeName', 'uuid', 'openContents', 'URLs'}
+
+    # Import methods
+
+    @staticmethod
+    def pif2json(file):
+        """Convert 1pif to json: https://github.com/eblin/1passpwnedcheck."""
+        data = file.read()
+        cleaned = re.sub(r'(?m)^\*\*\*.*\*\*\*\s+', '', data)
+        cleaned = cleaned.split('\n')
+        cleaned = ','.join(cleaned).rstrip(',')
+        cleaned = '[%s]' % cleaned
+        return json.loads(cleaned)
+
+    def parse(self):
+        """Parse PIF based file."""
+        jsons = self.pif2json(self.file)
+        keys = self.invkeys()
+        folders = dict()
+        for item in jsons:
+            if item.get('typeName', '') == 'system.folder.Regular':
+                key = item.get('uuid', '')
+                folders[key] = {
+                    'group': item.get('title', ''),
+                    'parent': item.get('folderUuid', '')
+                }
+
+            elif item.get('typeName', '') == 'webforms.WebForm':
+                entry = dict()
+                scontent = item.pop('secureContents', {})
+                fields = scontent.pop('fields', [])
+                for field in fields:
+                    name = field.get('name', '')
+                    designation = field.get('designation', '')
+                    jsonkey = name or designation
+                    key = keys.get(jsonkey, jsonkey)
+                    entry[key] = field.get('value', '')
+
+                item.update(scontent)
+                for key, value in item.items():
+                    if key not in self.ignore:
+                        entry[keys.get(key, key)] = value
+                self.data.append(entry)
+        self._sortgroup(folders)
+
+    # Format recognition method
+
+    def is_format(self):
+        """Return True if the file is a 1PUX file."""
+        if !zipfile.is_zipfile(self.file):
+            return False
+        try:
+            with ZipFile(self.file) as zip_file:
+                with zip_file.open('export.attributes') as attr_file:
+                    attr_data = json.loads(attr_file.read())
+                    if attr_data['version'] != 2:
+                        return False
+                with zip_file.open('export.data') as data_file:
+                    self.jsons = json.loads(data_file.read())
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+            return False
+        return True
+
+    def checkheader(self, header, only=False):
+        """No header check is needed."""
+        return True
+
+
+
+register_detecters(JSON, PIF, PUX)

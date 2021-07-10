@@ -44,7 +44,7 @@ class OnePassword4CSV(CSV):
 
 
 class OnePassword4PIF(PIF):
-    """Importer for 1password 4 in PIF format."""
+    """Importer for 1password 4 in 1PIF format."""
     name = '1password'
     default = False
     version = '4'
@@ -61,4 +61,23 @@ class OnePassword4PIF(PIF):
     }
 
 
-register_managers(OnePasswordCSV, OnePassword4CSV, OnePassword4PIF)
+class OnePasswordPUX(PUX):
+    """Importer for 1password 8 (Linux) in 1PUX format."""
+    name = '1password'
+    default = False
+    version = '8'
+    url = 'https://1password.com'
+    hexport = 'See this guide: https://support.1password.com/export'
+    himport = 'pass import 1password file.1pux'
+    keys = {
+        'title': 'title',
+        'password': 'password',
+        'login': 'username',
+        'url': 'location',
+        'comments': 'notesPlain',
+        'group': 'folderUuid'
+    }
+
+
+
+register_managers(OnePasswordCSV, OnePassword4CSV, OnePassword4PIF, OnePasswordPUX)

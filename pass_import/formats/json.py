@@ -117,7 +117,7 @@ class PIF(JSON):
                 for field in fields:
                     name = field.get('name', '')
                     designation = field.get('designation', '')
-                    jsonkey = name or designation
+                    jsonkey = designation or name
                     key = keys.get(jsonkey, jsonkey)
                     entry[key] = field.get('value', '')
 

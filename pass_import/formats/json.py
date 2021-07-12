@@ -121,6 +121,10 @@ class PIF(JSON):
         keys = self.invkeys()
         folders = dict()
         for item in jsons:
+            # Don't include trashed/archived items.
+            if item.get('trashed', False):
+                continue
+
             if item.get('typeName', '') == 'system.folder.Regular':
                 key = item.get('uuid', '')
                 folders[key] = {

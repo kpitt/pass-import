@@ -143,12 +143,27 @@ class PIF(JSON):
                     key = keys.get(jsonkey, jsonkey)
                     entry[key] = field.get('value', '')
 
+                sections = scontent.pop('sections', [])
+                if sections:
+                    otpauth = self._find_otpauth(sections)
+                    if otpauth:
+                        entry['otpauth'] = otpauth
+
                 item.update(scontent)
                 for key, value in item.items():
                     if key not in self.ignore:
                         entry[keys.get(key, key)] = value
+
                 self.data.append(entry)
         self._sortgroup(folders)
+
+    def _find_otpauth(self, sections):
+        for s in sections:
+            for f in s.get('fields', []):
+                v = f.get('v')
+                if v and v.startswith('otpauth:'):
+                    return v
+        return None
 
     # Format recognition method
 

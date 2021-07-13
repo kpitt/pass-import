@@ -83,7 +83,25 @@ class PIF(JSON):
     """
     format = '1pif'
     encoding = 'utf-8-sig'
-    ignore = {'keyID', 'typeName', 'uuid', 'openContents', 'URLs'}
+    ignore = {
+        'keyID',
+        'uuid',
+        'updatedAt',
+        'locationKey',
+        'securityLevel',
+        'openContents',
+        'faveIndex',
+        'contentsHash',
+        'trashed',
+        'URLs',
+        'passwordHistory',
+        'htmlName',
+        'htmlMethod',
+        'htmlAction',
+        'sections',
+        'createdAt',
+        'typeName'
+    }
 
     # Import methods
 

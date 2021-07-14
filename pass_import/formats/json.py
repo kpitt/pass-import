@@ -6,6 +6,7 @@
 import json
 import re
 
+import pass_import.clean as clean
 from pass_import.core import Cap, register_detecters
 from pass_import.detecter import Formatter
 from pass_import.manager import PasswordImporter
@@ -102,6 +103,37 @@ class PIF(JSON):
         'createdAt',
         'typeName'
     }
+    domain_prefixes = {
+        'www',
+        'www2',
+        'web',
+        'home',
+        'ssl',
+        'app',
+        'm',
+        'account',
+        'accounts',
+        'auth',
+        'id',
+        'login'
+    }
+
+    def __init__(self, prefix=None, settings=None):
+        settings = {} if settings is None else settings
+        options = settings.get('1password', {})
+        self.browserpass = options.get('browserpass', False)
+        self.strip_domain_prefixes = options.get('strip_domain_prefixes', True)
+        if self.strip_domain_prefixes:
+            self._load_domain_prefixes(options.get('domain_prefixes', []))
+        super(PIF, self).__init__(prefix, settings)
+
+    def _load_domain_prefixes(self, prefixes):
+        for prefix in prefixes:
+            if prefix[0] == '!':
+                # remove a default prefix
+                self.domain_prefixes.discard(prefix[1:])
+            else:
+                self.domain_prefixes.add(prefix)
 
     # Import methods
 
@@ -134,6 +166,20 @@ class PIF(JSON):
 
             elif item.get('typeName', '') == 'webforms.WebForm':
                 entry = dict()
+
+                if self.browserpass:
+                    # Browserpass (and similar browser extensions) expect to find the domain
+                    # name in the Password Store file path, which uses the 'title' field.  For
+                    # compatibility, we need to replace the 1Password title with the domain name
+                    # if a url is available.  We don't try to use the 1PIF 'locationKey' value
+                    # because 1Password can be a bit too aggressive about stripping prefixes.
+                    title = None
+                    url = item.get('location')
+                    if url:
+                        title = self._get_domain(url)
+                    if title:
+                        item['title'] = title
+
                 scontent = item.pop('secureContents', {})
                 fields = scontent.pop('fields', [])
                 for field in fields:
@@ -157,13 +203,25 @@ class PIF(JSON):
                 self.data.append(entry)
         self._sortgroup(folders)
 
-    def _find_otpauth(self, sections):
+    @staticmethod
+    def _find_otpauth(sections):
         for s in sections:
             for f in s.get('fields', []):
                 v = f.get('v')
                 if v and v.startswith('otpauth:'):
                     return v
         return None
+
+    def _get_domain(self, url):
+        """Get the domain name from the url with common prefixes removed."""
+        domain = clean.domain(clean.protocol(url))
+        if self.strip_domain_prefixes:
+            parts = domain.split('.')
+            while len(parts) > 2 and parts[0] in self.domain_prefixes:
+                parts.pop(0)
+            return '.'.join(parts)
+        else:
+            return domain
 
     # Format recognition method
 
